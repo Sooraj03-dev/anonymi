@@ -13,7 +13,7 @@ export default function HomePage() {
 
         <ul className="nav-links">
           <li>
-            <Link href="/space" className="nav-link">
+            <Link href="/personal-space" className="nav-link">
               <span className="nav-icon">⬡</span>Personal Space
             </Link>
           </li>
