@@ -1,2 +1,1 @@
-# anonymi
-A community-based emotional &amp; story sharing web platform with real-time chat, built with the MERN stack.
+🌿 A safe space to share stories, express emotions & connect — with private Safe Space chat (voice, video, files), group chat, community rooms & real-time support. Built with Next.js, Tailwind, Node.js, MongoDB & WebRTC.
