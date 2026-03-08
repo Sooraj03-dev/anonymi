@@ -1,9 +1,55 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [handle, setHandle] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleLogin = async () => {
+    if (!handle || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: handle, password }),
+      });
+
+      // FIX 1: Check if response is actually JSON before parsing
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        // API route returned HTML (404 page, 500 error page, etc.)
+        console.error("API did not return JSON. Status:", res.status, "Content-Type:", contentType);
+        setError(`Server error (${res.status}). Check that /api/login route exists.`);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        router.push("/dashboard");
+      } else {
+        // FIX 2: Show actual error from server, fallback to status text
+        setError(data.message || data.error || `Login failed (${res.status}).`);
+      }
+    } catch (err) {
+      // FIX 3: Log the real error so you can debug it
+      console.error("Login fetch error:", err);
+      setError("Cannot reach server. Check your network or API route.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -15,7 +61,6 @@ export default function LoginPage() {
           background: var(--bg);
         }
 
-        /* ── LEFT PANEL ── */
         .auth-left {
           position: relative;
           display: flex;
@@ -111,7 +156,6 @@ export default function LoginPage() {
           flex-shrink: 0;
         }
 
-        /* ── RIGHT PANEL ── */
         .auth-right {
           display: flex;
           align-items: center;
@@ -188,6 +232,7 @@ export default function LoginPage() {
           color: var(--text);
           outline: none;
           transition: border-color 0.2s, background 0.2s;
+          box-sizing: border-box;
         }
 
         .form-input::placeholder { color: var(--bg-3); filter: brightness(3); }
@@ -196,23 +241,6 @@ export default function LoginPage() {
           border-color: var(--purple);
           background: rgba(155,93,255,0.04);
         }
-
-        .field-action {
-          position: absolute;
-          right: 14px;
-          top: 50%;
-          transform: translateY(-50%);
-          font-size: 0.75rem;
-          color: var(--purple);
-          cursor: pointer;
-          text-decoration: none;
-          transition: opacity 0.2s;
-          background: none;
-          border: none;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .field-action:hover { opacity: 0.7; }
 
         .eye-btn {
           background: none;
@@ -242,6 +270,13 @@ export default function LoginPage() {
         }
 
         .forgot-link:hover { opacity: 0.7; }
+
+        .error-msg {
+          color: #ff5555;
+          font-size: 0.8rem;
+          margin-top: 0.5rem;
+          text-align: center;
+        }
 
         .auth-divider {
           display: flex;
@@ -280,10 +315,15 @@ export default function LoginPage() {
           margin-top: 0.5rem;
         }
 
-        .btn-auth-primary:hover {
+        .btn-auth-primary:hover:not(:disabled) {
           background: #d4ff1a;
           box-shadow: 0 0 28px var(--accent-glow);
           transform: translateY(-1px);
+        }
+
+        .btn-auth-primary:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .btn-auth-ghost {
@@ -330,7 +370,7 @@ export default function LoginPage() {
 
       <div className="auth-page">
 
-        {/* ── LEFT ── */}
+        {/* LEFT */}
         <div className="auth-left">
           <span className="auth-bg-text">LOG</span>
 
@@ -348,7 +388,7 @@ export default function LoginPage() {
               <span style={{ color: "var(--purple)" }}>No name.</span>
             </h2>
             <p>
-              Welcome back to the space where identity doesn't matter — only what you have to say.
+              Welcome back to the space where identity doesn&apos;t matter — only what you have to say.
             </p>
 
             <div className="auth-perks">
@@ -368,7 +408,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* ── RIGHT ── */}
+        {/* RIGHT */}
         <div className="auth-right">
           <div className="auth-form-wrap">
 
@@ -387,7 +427,10 @@ export default function LoginPage() {
                   type="text"
                   className="form-input"
                   placeholder="ghost_user_9821 or you@anon.im"
-                  autoComplete="off"
+                  // FIX 4: Changed from "off" to "username" so browser can suggest/restore saved credentials
+                  autoComplete="username"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value)}
                 />
               </div>
             </div>
@@ -401,6 +444,11 @@ export default function LoginPage() {
                   className="form-input"
                   placeholder="••••••••••••"
                   style={{ paddingRight: "44px" }}
+                  // FIX 5: Added autoComplete="current-password" so browser restores saved password
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 />
                 <button
                   className="eye-btn"
@@ -416,11 +464,24 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button className="btn-auth-primary">Log In →</button>
+            {error && <p className="error-msg">{error}</p>}
+
+            <button
+              className="btn-auth-primary"
+              onClick={handleLogin}
+              disabled={loading}
+            >
+              {loading ? "Logging in..." : "Log In →"}
+            </button>
 
             <div className="auth-divider"><span>or continue as</span></div>
 
-            <button className="btn-auth-ghost">👻 &nbsp;Enter as Guest</button>
+            <button
+              className="btn-auth-ghost"
+              onClick={() => router.push("/dashboard")}
+            >
+              👻 &nbsp;Enter as Guest
+            </button>
 
             <div className="auth-footer-note">
               No account?{" "}
